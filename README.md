@@ -35,4 +35,11 @@ alarm/raw e0 40 01 59 7f 00 7f ff
 ...
 ```
 
+or emulate key presses on the alarm control panel:
+
+```
+mosquitto_pub -h mqtt -t alarm/key/press -m "F1"
+```
+
+
 More details about the [ja-6x protocol](https://github.com/pezinek/py-jablotron6x/wiki/Protocol) is in the wiki.
