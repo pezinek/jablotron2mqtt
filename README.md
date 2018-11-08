@@ -22,7 +22,7 @@ once the mqtt-dump runs you may check mqtt for incomming messages:
 
 ```
 $ mosquitto_sub -h mqtt -t 'alarm/#' -v 
-alarm/online 0
+alarm/online 1
 alarm/mode disarmed
 alarm/leds/power 1
 alarm/leds/blinking_lock 0
