@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
 import sys
-import paho.mqtt.client as mqtt
 import logging
-
+import paho.mqtt.client as mqtt
+from time import sleep
 from jablotron6x import Jablotron6x, remove_duplicities
 
 
@@ -22,12 +22,14 @@ class Jablotron2mqtt(object):
 	alarm=None
 	mqttc=None
 	topic=""
+	mqtt_connected=False
+	reconnect_timeout=30
 
 	@property
 	def _msg_handlers(self):
 		return {
 			"key/press": self.on_mqtt_key_press
-		}
+	    	}
 
 	@property
 	def _mqtt_topics(self):
@@ -35,7 +37,7 @@ class Jablotron2mqtt(object):
 
 	def __init__(self, jablotron_port="/dev/ttyUSB0", 
 		     mqtt_host="127.0.0.1", mqtt_port=1883,
-                     mqtt_topic="alarm"):
+		     mqtt_topic="alarm"):
 
 		self._setup_mqtt(mqtt_host, mqtt_port, mqtt_topic)
 		self._setup_jablotron(jablotron_port)
@@ -72,25 +74,32 @@ class Jablotron2mqtt(object):
 		self.alarm.register_callback(self.on_alarm_message)
 
 		self.alarm.on_key_press = self.on_alarm_key
-                self.alarm.on_mode_change = self.on_alarm_mode
-                self.alarm.on_display_change = self.on_alarm_display
-                self.alarm.on_led_change = self.on_alarm_led
+		self.alarm.on_mode_change = self.on_alarm_mode
+		self.alarm.on_display_change = self.on_alarm_display
+		self.alarm.on_led_change = self.on_alarm_led
 
 		self.alarm.connect()
 
 	def publish(self, topic, msg, retain=False):
-		self.mqttc.publish("{0}/{1}".format(self.topic, topic), msg, retain=retain)
+		if not self.mqtt_connected:
+			return False
+
+		info = self.mqttc.publish("{0}/{1}".format(self.topic, topic), msg, retain=retain)
+		return info.rc == mqtt.MQTT_ERR_SUCCESS
 
 	def on_mqtt_connect(self, client, userdata, flags, rc):
 		for topic in self._mqtt_topics:
-			print("Subscribed: " + topic)
+			logging.debug("Subscribed: " + topic)
 			client.subscribe(topic)
+		self.mqtt_connected=True
 		self.publish("online", 1, retain=True)
-                ip=client.socket().getsockname()[0]
-                self.publish("ip", ip, retain=True)
+		ip=client.socket().getsockname()[0]
+		self.publish("ip", ip, retain=True)
+		logging.info("Connected to mqtt ...")
 
 	def on_mqtt_disconnect(self, client, userdata, rc):
-		print("Disconnected from mqtt ...")
+		logging.info("Disconnected from mqtt ...")
+		self.mqtt_connected=False
 
 	def on_mqtt_message(self, client, userdata, msg):
 		logging.debug("Message received {0}: {1}".format(msg.topic, msg.payload))
@@ -120,30 +129,39 @@ class Jablotron2mqtt(object):
 		logging.debug("Alarm registered key press: " + key)
 		self.publish("key", key)
 
-        def on_alarm_mode(self, mode):
-                logging.debug("Alarm mode changed: " + mode)
+	def on_alarm_mode(self, mode):
+		logging.debug("Alarm mode changed: " + mode)
 		for mqtt_mode, func in MODE_MAP:
 			if func(mode):
 				break;
-                logging.debug("Jablotron mode %s translated to mqtt mode %s" % (mode, mqtt_mode))
-                self.publish("mode", mqtt_mode, retain=True)
+		logging.debug("Jablotron mode %s translated to mqtt mode %s" % (mode, mqtt_mode))
+		self.publish("mode", mqtt_mode, retain=True)
 
-        def on_alarm_display(self, text):
-                logging.debug("Alarm display changed: " + text)
+	def on_alarm_display(self, text):
+		logging.debug("Alarm display changed: " + text)
 		self.publish("display", text, retain=True)
 
-        def on_alarm_led(self, **kwargs):
+	def on_alarm_led(self, **kwargs):
 		for (key, val) in kwargs.items():
 			logging.debug("Alarm led {0} changed to: {1}".format(key, "on" if val else "off"))
 			self.publish("leds/{0}".format(key), int(val), retain=True)
 
 	def loop_forever(self):
+
+		time_disconnected=0
+
 		while True :
 			self.mqttc.loop(timeout=0.1)
-			self.alarm.loop()
-
-		
-
+			if self.mqtt_connected:
+				self.alarm.loop()
+				time_disconnected=0
+			else:
+				if time_disconnected > self.reconnect_timeout:
+					logging.info("Reconnecting to mqtt ...")
+					self.mqttc.reconnect()
+					time_disconnected=0
+				time_disconnected+=0.1
+				sleep(0.1)
 
 
 if __name__ == "__main__":
