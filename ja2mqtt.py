@@ -34,9 +34,10 @@ class Jablotron2mqtt(object):
 		return [ self.topic + "/" + t  for t in self._msg_handlers.keys() ]
 
 	def __init__(self, jablotron_port="/dev/ttyUSB0", 
-		     mqtt_host="127.0.0.1", mqtt_topic="alarm"):
+		     mqtt_host="127.0.0.1", mqtt_port=1883,
+                     mqtt_topic="alarm"):
 
-		self._setup_mqtt(mqtt_host, mqtt_topic)
+		self._setup_mqtt(mqtt_host, mqtt_port, mqtt_topic)
 		self._setup_jablotron(jablotron_port)
 
 	def __enter__(self):
@@ -48,7 +49,7 @@ class Jablotron2mqtt(object):
 		self.alarm.__exit__(exc_type, exc_val, exc_tb)
 
 
-	def _setup_mqtt(self, host, topic):
+	def _setup_mqtt(self, host, port, topic):
 
 		self.topic = topic
 
@@ -63,7 +64,7 @@ class Jablotron2mqtt(object):
 
 		self.mqttc.will_set("{0}/online".format(self.topic), 0, retain=True)
 
-		self.mqttc.connect(host)
+		self.mqttc.connect(host, port=port, keepalive=60)
 
 	def _setup_jablotron(self, port):
 		self.alarm = Jablotron6x(port)
@@ -85,6 +86,8 @@ class Jablotron2mqtt(object):
 			print("Subscribed: " + topic)
 			client.subscribe(topic)
 		self.publish("online", 1, retain=True)
+                ip=client.socket().getsockname()[0]
+                self.publish("ip", ip, retain=True)
 
 	def on_mqtt_disconnect(self, client, userdata, rc):
 		print("Disconnected from mqtt ...")

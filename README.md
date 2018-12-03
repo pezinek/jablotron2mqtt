@@ -14,11 +14,10 @@ Run:
 
 ```
 . ./venv/bin/activate
-./mqtt-dump
+./main.py
 ```
-serial port and mqtt server currently hardcoded :-) (no argument parsing support yet)
 
-once the mqtt-dump runs you may check mqtt for incomming messages:
+once is the mqtt bridge running you may check mqtt for incomming messages:
 
 ```
 $ mosquitto_sub -h mqtt -t 'alarm/#' -v 
