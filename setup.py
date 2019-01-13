@@ -1,12 +1,13 @@
 from setuptools import setup
 
-setup(name='jablotron',
+setup(name='jablotron2mqtt',
       version='0.1',
-      description='Library for interfacing with jablotron 6x alarms',
+      description='Bridge for interfacing jablotron 6x alarms via MQTT',
       url='https://github.com/pezinek/py-jablotron6x',
-      packages=['jablotron'],
+      packages=['jablotron2mqtt'],
       install_requires=[
-        'pySerial',
+        'jablotron',
+        'paho-mqtt',
       ],
       zip_safe=False,
 )
