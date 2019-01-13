@@ -4,7 +4,8 @@ import sys
 import logging
 import paho.mqtt.client as mqtt
 from time import sleep
-from jablotron6x import Jablotron6x, remove_duplicities
+from jablotron import Jablotron6x
+from jablotron.jablotron6x import remove_duplicities
 
 
 # translates modes from jablotron to modes
@@ -98,7 +99,7 @@ class Jablotron2mqtt(object):
 		logging.info("Connected to mqtt ...")
 
 	def on_mqtt_disconnect(self, client, userdata, rc):
-		logging.info("Disconnected from mqtt ...")
+		logging.warning("Disconnected from mqtt ...")
 		self.mqtt_connected=False
 
 	def on_mqtt_message(self, client, userdata, msg):

@@ -74,6 +74,18 @@ _callback = collections.namedtuple('callback', 'function mask')
 
 class Jablotron6x(object):
 
+    """
+    Class for interfacing with Jablotron 6x alarms using the Ja-80T cable.
+
+    Usage example:
+
+    >>> with Jablotron6x("/dev/ttyUSB0") as j:
+    >>>   j.on_mode_change = lambda mode: print(str(mode))
+    >>>   j.send_keys('F06060')
+    >>>   j.send_keys('N')
+
+    """
+
     _con = None
 
     # callbacks
@@ -88,7 +100,13 @@ class Jablotron6x(object):
     display = None
 
 
-    def __init__(self, device, allow_raw=False):
+    def __init__(self, device):
+        """
+        Instantiates the class
+
+        :param device: string containing the name of the serial 
+                       device where alarm is connected to.
+        """
         self._device = device
         self._read_buffer = []
         self._callbacks = []
@@ -101,9 +119,9 @@ class Jablotron6x(object):
             timeout=0.1) 
 	self._con.port = self._device
 
-	self._register_internal_callbacks(allow_raw)
+	self._register_internal_callbacks()
 
-    def _register_internal_callbacks(self, allow_raw):
+    def _register_internal_callbacks(self):
 	# 0x8? events
 	for mask in KEY_MAP.values():
 		self.register_callback(self._handle_on_key_press, [mask])
@@ -118,23 +136,44 @@ class Jablotron6x(object):
         self.disconnect()
 
     def connect(self):
-        """Connect the serial port."""
+        """
+        Connect the serial port.
+
+        :return: self
+        """
         self._con.open()
         return self
 
     def disconnect(self):
-        """Disconnect the serial port."""
+        """
+        Disconnect the serial port.
+
+        :return: self
+        """
 	if self._con.is_open:
         	self._con.flush()
         	self._con.close()
         return self
 
     def send(self, buf):
+        """
+        Send raw buffer to serial port.
+
+        :param buf: list of numbers/bytes
+        :return: self
+        """
 	for b in buf:
 	    self._con.write(chr(b))
 	self._con.flush()
+        return self
 
     def send_keys(self, keys):
+        """
+        Send key presses to alarm.
+
+        :param keys: string containing characters 0..9 + F + N
+        :return: self 
+        """
 	try:
           for k in keys:
             self.send([KEY_MAP[k]])
@@ -144,7 +183,24 @@ class Jablotron6x(object):
 	return self
 
     def register_callback(self, callback, mask=[]):
-        """Register callback for received event."""
+        """
+        Register callback for received event.
+
+        :param mask: list of bytes that must match the beginning of 
+                     the alarm message.
+                     For info about jablotron messages see the wiki:
+		     https://github.com/pezinek/py-jablotron6x/wiki/Protocol
+        :param callback: callback with following signature
+
+                my_callback(buf)
+                :param buf: list of bytes received
+                :return:  EVENT_CONSUMED or EVENT_NOT_CONSUMED, 
+                          based on this following callbacks will
+                          or will not be executed.
+
+        :return: self
+        """
+
 	c = _callback(function=callback, mask=mask)
 	self._callbacks.append(c)
         return self
@@ -167,16 +223,20 @@ class Jablotron6x(object):
 			return
 
     def loop(self):
-        """Periodically reads data from serial line."""
+        """
+        Read/process data from serial line.
+
+        :return: self
+        """
 
         #process all pending chars
 	while True:
 		if not self._con.is_open:
-			return
+			break
 
 		b = self._con.read()
 		if len(b) == 0:
-			return 
+			break
 
 		b = ord(b)
         	self._read_buffer.append(b)
@@ -185,7 +245,10 @@ class Jablotron6x(object):
             		self._handle_event(self._read_buffer)
 	    		self._read_buffer = []
 
+	return self
+
     def loop_forever(self): 
+        """Process data from serial line forever."""
 	while True:
 	    self.loop()
 
@@ -212,7 +275,14 @@ class Jablotron6x(object):
 
     @property
     def on_key_press(self):
-       """If implemented, called when the alarm registers a key press."""
+       """
+       Callback. If set, called when alarm reports a key press.
+
+       Expected signature of the callback is:
+         key_press_callback(key)
+
+       key:	characters 1-9 or N or F
+       """
        return self._on_key_press
 
     @on_key_press.setter
@@ -281,58 +351,61 @@ class Jablotron6x(object):
 
     @property
     def on_mode_change(self):
-       """If implemented, called when alarm operational mode changes. E.g. when armed."""
+       """
+       Callback. If set, called when alarm operational mode changes. E.g. when armed.
+
+       Expected signature of the callback is:
+           mode_callback(mode)
+
+       mode:     text, see MODE_MAP
+       """
        return self._on_mode_change
 
     @on_mode_change.setter
     def on_mode_change(self, func):
-       """ Define mode update callback implementation.
-
-       Expected signatoure is:
-          mode_callback(mode)
-
-       mode:     text, see MODE_MAP
-       """
+       """ Define mode update callback implementation."""
        self._on_mode_change=func
 
     @property
     def on_led_change(self):
-      """If implemented, called when alarm LEDs change."""
-      return self._on_led_change
+      """
+      Callback. If set, called when alarm LEDs change.
 
-    @on_led_change.setter
-    def on_led_change(self, func):
-      """ Define led update callback implementation.
-
-      Expected signature is:
+      Expected signature of the callback is:
          led_callback(**kwargs)
 
       kwargs: boolean parameters with names from LED_MAP
       """
+      return self._on_led_change
+
+    @on_led_change.setter
+    def on_led_change(self, func):
+      """ Define led update callback implementation."""
       self._on_led_change=func
 
 
     @property
     def on_display_change(self):
-      """If implemented, called when alarm Display changes."""
-      return self._on_display_change
-
-    @on_display_change.setter
-    def on_display_change(self, func):
-      """ Define display update callback implementation.
+      """
+      Callback. If set, called when alarm Display changes.
 
       Expected signature is:
          display_callback(text)
 
       text: text visible on keypad display
       """
+      return self._on_display_change
+
+    @on_display_change.setter
+    def on_display_change(self, func):
+      """ Define display update callback implementation."""
       self._on_display_change=func
 
 
 # Helper callbacks
 
 def print_buffer(buf):
-    """ callback for printing raw event buffer """
+    """ callback for printing raw event buffer. """
     print("%s" % " ".join(["%02x" % c for c in buf]))
     return EVENT_NOT_CONSUMED
 
@@ -353,7 +426,7 @@ remove_duplicities.last = 0;
 
 if __name__ == "__main__":
 
-
+    # Test code
     with Jablotron6x("/dev/ttyUSB0") as j:
         #j.register_callback([], print_all).send_keys('NNN').loop_forever()
         #j.register_callback(consume_event, mask=[0xe0])
