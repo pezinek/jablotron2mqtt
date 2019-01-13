@@ -1,8 +1,9 @@
-# py-jablotron6x
+# jablotron2mqtt
 Library for interfacing with Jablotron 6x alarms by using the JA-80T serial cable
 via MQTT.
 
-Setup:
+### Setup:
+
 
 ```
 LC_ALL=C virtualenv venv
@@ -10,11 +11,11 @@ LC_ALL=C virtualenv venv
 pip install -r requirements.txt
 ```
 
-Run:
+### Run:
 
 ```
 . ./venv/bin/activate
-./main.py
+jablotron2mqtt/main.py --serial-port /dev/ttyUSB0  --host mqtt
 ```
 
 once is the mqtt bridge running you may check mqtt for incomming messages:
@@ -40,5 +41,22 @@ or emulate key presses on the alarm control panel:
 mosquitto_pub -h mqtt -t alarm/key/press -m "F1"
 ```
 
+### Home Assistant:
+
+eventually if you plan to controll your jablotron from [Home Assistant](https://home-assistant.io/) your configuration may look like this:
+
+```
+alarm_control_panel:
+  - platform: mqtt
+    name: jablotron
+    state_topic: "alarm/mode"
+    command_topic: "alarm/key/press"
+    payload_disarm: !secret alarm_code
+    payload_arm_home: "F1"
+    payload_arm_away: !secret alarm_code
+    availability_topic: "alarm/online"
+    payload_available: "1"
+    payload_not_available: "0"
+```
 
 More details about the [ja-6x protocol](https://github.com/pezinek/py-jablotron6x/wiki/Protocol) is in the wiki.
