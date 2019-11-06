@@ -1,0 +1,10 @@
+[Unit]
+Description=Jablotron JA-6x bridge to mqtt
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/systemd-cat -p debug /usr/bin/python /usr/local/lib/python2.7/dist-packages/jablotron2mqtt/main.py --host mqtt -p /dev/ttyUSB0 -v -d
+
+[Install]
+WantedBy=multi-user.target
+

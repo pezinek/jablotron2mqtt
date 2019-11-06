@@ -5,10 +5,20 @@ via MQTT.
 ### Setup:
 
 
+as root run:
 ```
-LC_ALL=C virtualenv venv
-. ./venv/bin/activate
+export LC_ALL=C
+pip install setuptools wheel
 pip install -r requirements.txt
+pip install .
+
+cp jablotron2mqtt.service /etc/systemd/system/
+chmod 644 /etc/systemd/system/jablotron2mqtt.service
+vi /etc/systemd/system/jablotron2mqtt.service  # adjust serial port, mqtt server, verbosity etc.
+
+systemctl start jablotron2mqtt
+systemctl status jablotron2mqtt
+systemctl enable jablotron2mqtt
 ```
 
 ### Run:
