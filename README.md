@@ -14,7 +14,7 @@ pip install .
 
 cp jablotron2mqtt.service /etc/systemd/system/
 chmod 644 /etc/systemd/system/jablotron2mqtt.service
-vi /etc/systemd/system/jablotron2mqtt.service  # adjust serial port, mqtt server, verbosity etc.
+vi /etc/systemd/system/jablotron2mqtt.service  # adjust serial port, mqtt server and topic, verbosity etc.
 
 systemctl start jablotron2mqtt
 systemctl status jablotron2mqtt
